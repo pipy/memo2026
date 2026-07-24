@@ -1,0 +1,63 @@
+name: Deploy to alwaysdata
+
+# 使う場合はファイル名末尾の .example を外してください。
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.ALWAYSDATA_SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.ALWAYSDATA_SSH_HOST }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Upload application
+        env:
+          SSH_HOST: ${{ secrets.ALWAYSDATA_SSH_HOST }}
+          SSH_USER: ${{ secrets.ALWAYSDATA_SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.ALWAYSDATA_DEPLOY_PATH }}
+        run: |
+          rsync -az --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.env' \
+            --exclude='vendor/' \
+            --exclude='storage/' \
+            --exclude='bootstrap/cache/*' \
+            ./ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/"
+
+      - name: Install and migrate
+        env:
+          SSH_HOST: ${{ secrets.ALWAYSDATA_SSH_HOST }}
+          SSH_USER: ${{ secrets.ALWAYSDATA_SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.ALWAYSDATA_DEPLOY_PATH }}
+        run: |
+          ssh "$SSH_USER@$SSH_HOST" "cd '$DEPLOY_PATH' && \
+            composer2 install --no-dev --no-interaction --prefer-dist --optimize-autoloader && \
+            mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache && \
+            chmod -R ug+rwX storage bootstrap/cache && \
+            php artisan migrate --force && \
+            php artisan optimize:clear && \
+            php artisan config:cache && \
+            php artisan route:cache && \
+            php artisan view:cache"
