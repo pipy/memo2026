@@ -6,6 +6,7 @@
     <meta name="description" content="Laravelで作成したシンプルなメモアプリ">
     <title>@yield('title', 'Memo 2026')</title>
     <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/auth.css') }}">
 </head>
 <body>
     <header class="site-header">
