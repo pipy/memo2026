@@ -10,11 +10,21 @@
 <body>
     <header class="site-header">
         <div class="container header-inner">
-            <a class="brand" href="{{ route('notes.index') }}" aria-label="メモ一覧へ">
+            <a class="brand" href="{{ auth()->check() ? route('notes.index') : route('login') }}" aria-label="Memo 2026">
                 <span class="brand-mark">M</span>
                 <span>Memo 2026</span>
             </a>
-            <a class="button button-primary button-small" href="{{ route('notes.create') }}">新しいメモ</a>
+
+            @auth
+                <div class="header-actions">
+                    <span class="user-name">{{ auth()->user()->name }}</span>
+                    <a class="button button-primary button-small" href="{{ route('notes.create') }}">新しいメモ</a>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button class="button button-ghost button-small" type="submit">ログアウト</button>
+                    </form>
+                </div>
+            @endauth
         </div>
     </header>
 
